@@ -7,10 +7,14 @@ const redis = require('redis');
 
 //Create Redis Client
 let client = redis.createClient();
+(async () => {
+    await client.connect();
+    console.log('Connected to Redis....');
+})();
+
 client.on('connect', function () {
     console.log('Connected to Redis....');
 });
-
 //Set Port
 const port = 3000;
 
@@ -18,7 +22,7 @@ const port = 3000;
 const app = express();
 
 //View Engine
-app.engine('handlebars', exphbs({defaultLayout: 'main'}));
+app.engine('handlebars', exphbs.engine({defaultLayout: 'main'}));
 app.set('view engine', 'handlebars');
 
 //body-parser
@@ -34,21 +38,28 @@ app.get('/', function (req, res, next) {
 });
 
 // Search processing
-app.post('/user/search', function (req, res, next) {
+app.post('/user/search', async function (req, res, next) {
     let id = req.body.id;
-    client.hgetall(id, function(err, obj){
-        if(!obj){
+    try {
+        const obj = await client.hGetAll(id);
+        if (!obj || Object.keys(obj).length === 0) {
             res.render('searchusers', {
-            error: 'User does not exist'
-        });
+                error: 'User does not exist'
+            });
         } else {
             obj.id = id;
             res.render('details', {
                 user: obj
-        });
+            });
         }
-    });
+    } catch (err) {
+        console.error(err);
+        res.render('searchusers', {
+            error: 'Error in searching for user'
+        });
+    }
 });
+
 
 //Add User Page
 app.get('/user/add', function (req, res, next) {
@@ -56,26 +67,29 @@ app.get('/user/add', function (req, res, next) {
 });
 
 //Process Add User Page
-app.post('/user/add', function (req, res, next) {
+app.post('/user/add', async function (req, res, next) {
     let id = req.body.id;
     let first_name = req.body.first_name;
     let last_name = req.body.last_name;
     let email = req.body.email;
     let phone = req.body.phone;
 
-    client.hmset(id, [
-        'first_name', first_name,
-        'last_name', last_name,
-        'email', email,
-        'phone', phone
-    ], function (err, reply) {
-        if(err){
-            console.log(err);
-        }
+    try {
+        // Using hSet with an object for the field-value pairs
+        const reply = await client.hSet(id, {
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': email,
+            'phone': phone
+        });
         console.log(reply);
         res.redirect('/');
-        });
+    } catch (err) {
+        console.log(err);
+        res.status(500).send("Error while adding user");
+    }
 });
+
 
 //Delete User
 app.delete('/user/delete/:id', function(req, res, next){
