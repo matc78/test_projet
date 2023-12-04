@@ -6,7 +6,7 @@ describe('Redis Client', () => {
   // Initialiser le client Redis
   beforeAll(async () => {
     client = redis.createClient({
-      url: 'redis://localhost:6379' // Assurez-vous que ceci correspond à votre configuration Redis
+      url: 'redis://localhost:6379' 
     });
 
     client.on('error', (err) => console.log('Redis Client Error', err));
